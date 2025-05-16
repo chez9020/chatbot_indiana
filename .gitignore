@@ -1,0 +1,15 @@
+# Entorno virtual
+venv/
+
+# Configuración
+.env
+*.log
+
+# Archivos temporales
+__pycache__/
+*.pyc
+
+# Claves
+OCR_KEY.json
+
+.DS_Store
