@@ -3,6 +3,7 @@ from heyoo import WhatsApp
 import random, redis, json
 import datetime,os
 from google.cloud import vision
+from ticket_validator import validar_ticket_desde_media
 from dotenv import load_dotenv
 
 
@@ -11,7 +12,7 @@ app = Flask(__name__)
 load_dotenv()
 token_facebook = os.getenv("VERIFY_TOKEN")
 id_numero = os.getenv("ID_NUMERO")
-
+WEBHOOK_VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN")
 
 # Configuración de Redis local
 r = redis.Redis(host='localhost', port=6379, decode_responses=True)
@@ -53,8 +54,7 @@ premios = [
     "Kit Milwaukee",
     "Kit Grill"
     ]
-
-WEBHOOK_VERIFY_TOKEN = "indiana123"  # Mismo que colocas en el panel de Meta
+ # Mismo que colocas en el panel de Meta
 
 # ✅ UNIFICADO PARA ACEPTAR /webhook Y /webhook/
 @app.route("/webhook", methods=["GET", "POST"])
@@ -142,7 +142,7 @@ def webhook():
                 try:
                     monto = float(texto.replace(",", "").replace("$", ""))
                     if monto < 5000:
-                        wa.send_message("❌ El ticket debe ser mayor a $5,000 para registrarse en la promoción.", telefono)
+                        wa.send_message("❌ El ticket debe ser mayor a $5,000 para registrarse en la promoción.\n\n Regresa a participar con un ticket de compra mayor a $5000", telefono)
                         return jsonify({"status": "monto insuficiente nuevo ticket"})
                     else:
                         usuario["paso"] = 6
@@ -183,7 +183,7 @@ def webhook():
                         monto = float(texto.replace(",", "").replace("$", ""))
                         if monto < 5000:
                             wa.send_message(
-                                "Gracias por participar. 💵 Tu ticket debe ser de al menos *$5,000* para participar en la promoción\n\n Regresa a participar con un ticket de compra mayor a $5000",
+                                "❌ El ticket debe ser mayor a $5,000 para registrarse en la promoción.\n\n Regresa a participar con un ticket de compra mayor a $5000",
                                 telefono
                             )
                             eliminar_sesion(telefono)
@@ -261,13 +261,31 @@ def webhook():
 
                 usuario["tickets"].append(usuario["respuestas"].copy())
                 usuario["respuestas"].clear()
-
                 wa.send_message("⏳ Estamos validando tu ticket... Esto puede tomar unos segundos.", telefono)
-                premio = random.choice(premios)
-                wa.send_message(
-                    f"🎉 ¡Tu ticket ha sido validado con éxito!\n\n🎁 ¡Felicidades! Ganaste: *{premio}*\n\n📦 En breve recibirás instrucciones para recibir tu premio en casa.",
-                    telefono
-                )
+                resultado = validar_ticket_desde_media(media_id, token_facebook, telefono)
+
+
+                if resultado["valido"]:
+                    usuario["tickets"].append(usuario["respuestas"].copy())
+                    usuario["respuestas"].clear()
+                    premio = random.choice(premios)
+                    wa.send_message(
+                        f"🎉 ¡Tu ticket ha sido validado con éxito!\n\n🎁 ¡Felicidades! Ganaste: *{premio}*\n\n📦 En breve recibirás instrucciones para recibir tu premio en casa.",
+                        telefono
+                    )
+                else:
+                    motivo = resultado.get("motivo", "La imagen no parece un ticket")
+                    if "no parece un ticket" in motivo.lower():
+                        wa.send_message(
+                            "🚫 La imagen enviada no parece un ticket válido.\n\n"
+                            "Por favor asegúrate de enviar una foto clara del ticket de compra, donde se vea el total.",
+                            telefono
+                        )
+                    else:
+                        wa.send_message(
+                            f"❌ El ticket no es válido para la promoción.\n\nMotivo: {motivo}",
+                            telefono
+                        )
 
                 wa.send_message("¿Tienes otro ticket? (Sí / No)", telefono)
                 usuario["paso"] = 99
