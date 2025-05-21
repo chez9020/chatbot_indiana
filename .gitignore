@@ -11,5 +11,12 @@ __pycache__/
 
 # Claves
 OCR_KEY.json
+SHEETS_KEY.json
+app-bristol-credentials.pem
 
+#Imagenes
+*.png
+*.jpg
 .DS_Store
+
+
