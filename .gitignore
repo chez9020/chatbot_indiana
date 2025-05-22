@@ -17,6 +17,7 @@ app-bristol-credentials.pem
 #Imagenes
 *.png
 *.jpg
+*.jpeg
 .DS_Store
 
 
