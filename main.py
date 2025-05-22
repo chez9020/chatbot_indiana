@@ -4,6 +4,7 @@ import random, redis, json
 import datetime,os
 from google.cloud import vision
 from ticket_validator import validar_ticket_desde_media
+from sheets_logger import registrar_ticket_en_sheets
 from dotenv import load_dotenv
 
 
@@ -259,20 +260,32 @@ def webhook():
                 usuario["respuestas"]["ticket_photo"] = f"media:{media_id}"
                 usuario["respuestas"]["timestamp"] = datetime.datetime.now().isoformat()
 
-                usuario["tickets"].append(usuario["respuestas"].copy())
-                usuario["respuestas"].clear()
                 wa.send_message("⏳ Estamos validando tu ticket... Esto puede tomar unos segundos.", telefono)
+                
                 resultado = validar_ticket_desde_media(media_id, token_facebook, telefono)
-
+                #usuario["respuestas"]["nombre_archivo"] = resultado.get("nombre_archivo", "")
 
                 if resultado["valido"]:
-                    usuario["tickets"].append(usuario["respuestas"].copy())
+                    usuario["respuestas"]["nombre_archivo"] = resultado.get("nombre_archivo", "")
+                    usuario["respuestas"]["monto"] = resultado.get("monto", "")
+                    #usuario["tickets"].append(usuario["respuestas"].copy())
+                    nuevo_ticket = usuario["respuestas"].copy()
+                    usuario["tickets"].append(nuevo_ticket)
                     usuario["respuestas"].clear()
+
                     premio = random.choice(premios)
                     wa.send_message(
                         f"🎉 ¡Tu ticket ha sido validado con éxito!\n\n🎁 ¡Felicidades! Ganaste: *{premio}*\n\n📦 En breve recibirás instrucciones para recibir tu premio en casa.",
                         telefono
                     )
+                    datos_generales = {
+                        "telefono": telefono,
+                        "nombre": usuario["tickets"][0].get("nombre", ""),  # Usamos el primer ticket como referencia
+                        "tienda": usuario["tickets"][0].get("tienda", ""),
+                        "ocupacion": usuario["tickets"][0].get("ocupacion", ""),
+                        "medio": usuario["tickets"][0].get("medio", "")
+                    }
+                    registrar_ticket_en_sheets(datos_generales, nuevo_ticket)  # ✅ Solo el nuevo ticket
                 else:
                     motivo = resultado.get("motivo", "La imagen no parece un ticket")
                     if "no parece un ticket" in motivo.lower():

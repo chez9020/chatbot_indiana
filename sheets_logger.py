@@ -10,22 +10,25 @@ load_dotenv()
 cred_path = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
 sheet_id = os.getenv("GOOGLE_SHEETS_ID")
 
-# Autenticación con las credenciales del Service Account
-scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-credentials = Credentials.from_service_account_file(cred_path, scopes=scopes)
+# Autenticación moderna
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+credentials = Credentials.from_service_account_file(cred_path, scopes=scope)
 client = gspread.authorize(credentials)
+worksheet = client.open_by_key(sheet_id).sheet1
 
-# Abrir la hoja
-spreadsheet = client.open_by_key(sheet_id)
-worksheet = spreadsheet.sheet1  # usa la primera hoja
-
-# Buscar la primera columna vacía en la columna 'saludo'
-# Si la hoja está vacía, escribimos encabezado
-if worksheet.cell(1, 1).value != "saludo":
-    worksheet.update("A1", "saludo")
-
-# Agrega "Hola mundo" en la siguiente fila vacía
-next_row = len(worksheet.col_values(1)) + 1
-worksheet.update(f"A{next_row}", [["Hola mundo"]])
-
-print(f"✅ Escrito en A{next_row}: Hola mundo")
+# Función para registrar un ticket
+def registrar_ticket_en_sheets(datos_generales, ticket):
+    fila = [
+        datos_generales.get("telefono", ""),
+        datos_generales.get("nombre", ""),
+        datos_generales.get("tienda", ""),
+        datos_generales.get("ocupacion", ""),
+        datos_generales.get("medio", ""),
+        ticket.get("nombre_archivo", ""),
+        ticket.get("timestamp", ""),
+        ticket.get("monto", "")
+    ]
+    worksheet.append_row(fila)

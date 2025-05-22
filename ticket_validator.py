@@ -99,6 +99,10 @@ def validar_ticket_desde_media(media_id, token, telefono):
     monto = total_palabra or total_mayor
 
     if monto >= 5000:
-        return {"valido": True, "monto": monto}
+        return {
+            "valido": True,
+            "monto": monto,
+            "nombre_archivo": os.path.basename(ruta_imagen)
+        }
     else:
         return {"valido": False, "motivo": f"El monto detectado es menor a $5,000: ${monto:.2f}"}
